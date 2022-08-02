@@ -70,7 +70,7 @@ def save_state(name, state):
         filename += ".ratelimited"
     with open(filename, "w") as fd:
         json.dump(state.__dict__, fd)
-    print("Saved as [{}]".format(filename))
+    print(f"Saved as [{filename}]")
 
 
 def regex_search(checks, repo, print_lines):
@@ -103,23 +103,31 @@ def regex_search(checks, repo, print_lines):
                     break
             except Exception as e:
                 print(
-                    bcolors.FAIL + "ERROR: ", e, bcolors.ENDC,
-                    bcolors.WARNING, "\nCHECK: ", check, bcolors.ENDC,
-                    "\nLINE: ", line)
-    print(bcolors.HEADER + "End of Matches" + bcolors.ENDC)
+                    f"{bcolors.FAIL}ERROR: ",
+                    e,
+                    bcolors.ENDC,
+                    bcolors.WARNING,
+                    "\nCHECK: ",
+                    check,
+                    bcolors.ENDC,
+                    "\nLINE: ",
+                    line,
+                )
+
+    print(f"{bcolors.HEADER}End of Matches{bcolors.ENDC}")
     return output
 
 
 def should_parse(repo, state, is_gist=False):
     owner_login = repo.owner.login if is_gist else repo.repository.owner.login
     if owner_login in state.bad_users:
-        print(bcolors.FAIL + "Failed check: Ignore User" + bcolors.ENDC)
+        print(f"{bcolors.FAIL}Failed check: Ignore User{bcolors.ENDC}")
         return False
     if not is_gist and repo.repository.name in state.bad_repos:
-        print(bcolors.FAIL + "Failed check: Ignore Repo" + bcolors.ENDC)
+        print(f"{bcolors.FAIL}Failed check: Ignore Repo{bcolors.ENDC}")
         return False
     if not is_gist and repo.name in state.bad_files:
-        print(bcolors.FAIL + "Failed check: Ignore File" + bcolors.ENDC)
+        print(f"{bcolors.FAIL}Failed check: Ignore File{bcolors.ENDC}")
         return False
 
     # Fuzzy Hash Comparison
@@ -135,13 +143,18 @@ def should_parse(repo, state, is_gist=False):
             similarity = ssdeep.compare(candidate_sig, sig)
             if similarity > SIMILARITY_THRESHOLD:
                 print(
-                    bcolors.FAIL +
-                    "Failed check: Ignore Fuzzy Signature on Contents "
-                    "({}% Similarity)".format(similarity) +
-                    bcolors.ENDC)
+                    (
+                        (
+                            bcolors.FAIL
+                            + f"Failed check: Ignore Fuzzy Signature on Contents ({similarity}% Similarity)"
+                        )
+                        + bcolors.ENDC
+                    )
+                )
+
                 return False
     except github.GithubException as e:
-        print(bcolors.FAIL + "API ERROR: " + e + bcolors.ENDC)
+        print(f"{bcolors.FAIL}API ERROR: {e}{bcolors.ENDC}")
     return True
 
 
@@ -165,9 +178,12 @@ def input_handler(state, is_gist):
         "=== " + bcolors.ENDC + \
         "Ignore similar [c]ontents" + \
         bcolors.OKGREEN + "/[u]ser"
-    prompt += "" if is_gist else \
-        bcolors.OKBLUE + "/[r]epo" + \
-        bcolors.WARNING + "/[f]ilename"
+    prompt += (
+        ""
+        if is_gist
+        else ((f"{bcolors.OKBLUE}/[r]epo" + bcolors.WARNING) + "/[f]ilename")
+    )
+
     prompt += bcolors.HEADER + \
         ", [p]rint contents, [s]ave state, [a]dd to log, " + \
         "search [/(findme)], [b]ack, [q]uit, next [<Enter>]===: " + \
@@ -192,7 +208,7 @@ def regex_handler(choice, repo):
             bcolors.ENDC)
         return ""
     else:
-        print(bcolors.HEADER + "Searching: " + choice[1:] + bcolors.ENDC)
+        print(f"{bcolors.HEADER}Searching: {choice[1:]}{bcolors.ENDC}")
         return regex_search([choice[1:]], repo, False)
 
 
@@ -263,7 +279,7 @@ def gist_search(g, state):
         state.totalCount = gist_data["total_items"]
 
     if state.totalCount == 0:
-        print("No results found for query: {}".format(state.query))
+        print(f"No results found for query: {state.query}")
     else:
         print(bcolors.CLEAR)
 
@@ -351,13 +367,47 @@ def github_search(g, state):
                     if(domain == "api.github.com"):
                         domain = "github.com"
 
-                    log_buf = scheme + "://" + \
-                        domain + "/" + \
-                        bcolors.OKGREEN + repo.repository.owner.login + "/" + \
-                        bcolors.OKBLUE + repo.repository.name + "/blob" + \
-                        bcolors.ENDC + \
-                        os.path.dirname(repo.html_url.split('blob')[1]) + \
-                        "/" + bcolors.WARNING + repo.name + bcolors.ENDC
+                    log_buf = (
+                        (
+                            (
+                                (
+                                    (
+                                        (
+                                            (
+                                                (
+                                                    (
+                                                        (
+                                                            (
+                                                                (
+                                                                    f"{scheme}://"
+                                                                    + domain
+                                                                )
+                                                                + "/"
+                                                            )
+                                                            + bcolors.OKGREEN
+                                                        )
+                                                        + repo.repository.owner.login
+                                                    )
+                                                    + "/"
+                                                )
+                                                + bcolors.OKBLUE
+                                            )
+                                            + repo.repository.name
+                                        )
+                                        + "/blob"
+                                    )
+                                    + bcolors.ENDC
+                                )
+                                + os.path.dirname(
+                                    repo.html_url.split('blob')[1]
+                                )
+                                + "/"
+                            )
+                            + bcolors.WARNING
+                        )
+                        + repo.name
+                    ) + bcolors.ENDC
+
                     print(log_buf)
                     log_buf = "\n" + log_buf + "\n"
 
@@ -412,15 +462,17 @@ def regex_validator(args, state):
                 sys.exit(-1)
             state.checks.append(line)
 
-    split = []
-    if not (state.query[0] == "\"" and state.query[-1] == "\""):
-        split = re.split(GITHUB_WHITESPACE, state.query)
+    split = (
+        []
+        if (state.query[0] == "\"" and state.query[-1] == "\"")
+        else re.split(GITHUB_WHITESPACE, state.query)
+    )
 
     for part in [state.query] + split:
         if part:
             escaped_query = re.escape(part) if split else \
                 part.replace("\"", "")
-            state.checks.append("(?i)(" + escaped_query + ")")
+            state.checks.append(f"(?i)({escaped_query})")
     return state
 
 
@@ -433,10 +485,25 @@ def main():
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="./" + sys.argv[0] + " -q example.com\n" +
-        "./" + sys.argv[0] + " -q example.com -f checks/default.list "
-        "-o example1.log\n" +
-        "./" + sys.argv[0] + " -q example.com -r example.com.state")
+        description=(
+            (
+                (
+                    (
+                        (
+                            (f"./{sys.argv[0]}" + " -q example.com\n" + "./")
+                            + sys.argv[0]
+                        )
+                        + " -q example.com -f checks/default.list "
+                        "-o example1.log\n"
+                    )
+                    + "./"
+                )
+                + sys.argv[0]
+            )
+            + " -q example.com -r example.com.state"
+        ),
+    )
+
     parser.add_argument(
         "-q",
         "--query",
@@ -457,7 +524,9 @@ def main():
         "--checks",
         help="List of RegEx checks (checks/default.list)",
         type=str,
-        default=os.path.dirname(os.path.realpath(__file__)) + "/checks/default.list")
+        default=f"{os.path.dirname(os.path.realpath(__file__))}/checks/default.list",
+    )
+
     parser.add_argument(
         "-o",
         "--output",
@@ -518,8 +587,7 @@ def main():
     state = regex_validator(args, state)
 
     if args.url:
-        g = github.Github(base_url=args.url + "/api/v3",
-                          login_or_token=ACCESS_TOKEN)
+        g = github.Github(base_url=f"{args.url}/api/v3", login_or_token=ACCESS_TOKEN)
     else:
         g = github.Github(ACCESS_TOKEN)
 
